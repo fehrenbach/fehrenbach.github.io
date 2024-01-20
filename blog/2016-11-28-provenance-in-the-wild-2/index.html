@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2016-11-28
+  </header>
+  <p>People really want provenance.
+I keep failing at coming up with good examples.
+So maybe I should keep a record.</p>
+<p>Today’s iteration: <a href="https://twitter.com/sigfpe/status/803061560708972544">Dan Piponi wants to know</a> why pixels look like they do:</p>
+<blockquote>
+<p>Working on Atari 2600 emulator. Adding feature I’ve wanted on every platform: click on pixel to get explanation for why it looks like that.</p>
+</blockquote>
+<p>I don’t know anything about Atari 2600 graphics, but he says that dumping the TIA registers and timing information should be enough.
+This is not obviously one of the forms of provenance studied in the context of databases.
+I’m not even sure (emulator-) language-level provenance would necessarily help very much with implementing this.</p>
+<p>As in, provenance in the object language is at a different level from provenance in the meta language.
+The object language being the interface of the emulator (where you click on pixels).
+From the meta language viewpoint, it is data that you want to propagate, pretty much like any other data.
+What could language-support for provenance possibly provide over just pairing up pixels with their associated ITA register values?</p>
+<p>So does that mean that people do not want provenance support in their language after all?</p>
+</article>
+
+    </section>
+  </body>
+</html>

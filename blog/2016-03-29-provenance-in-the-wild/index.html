@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2016-03-29
+  </header>
+  <h1 id="provenance-in-the-wild">Provenance in the wild</h1>
+<p>With delight I read today in <a href="https://github.com/blog/2131-git-2-8-has-been-released">GitHubs summary</a> of git 2.8 release notes the following:</p>
+<blockquote>
+<p>Git configuration values are read from several different places, including system-level, user-level, and repository-specific files. This can make it hard to figure out where a setting has to be changed. Now you can use git config –show-origin to show where a particular setting came from.</p>
+</blockquote>
+<p>They give an example that shows in which file the <code>user.name</code> setting was set:</p>
+<pre><code>$ git config --show-origin user.name
+file:/home/me/.gitconfig    Me Myself</code></pre>
+<p>This tells us that the value <code>Me Myself</code> “comes from” the file <code>/home/me/.gitconfig</code>.</p>
+<p>I keep having trouble finding good examples for why you need provenance support in a language.
+It really should not be that hard.
+This makes a great case for language-integrated provenance.
+I should look into what their exact semantics are, but at a first glance this looks like what I would call where-provenance.</p>
+<p>You could model this in Links with where-provenance, if config values were stored in a database.
+I guess this is a point in favor of relaxing our restrictions (to database values) on provenance a bit.</p>
+<p>People care about provenance, even though few people know what you’re talking about, when you say “provenance”.</p>
+</article>
+
+    </section>
+  </body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2015-02-20
+  </header>
+  <p>I attended a Google interview workshop. They told us to communicate, ask questions, write sensible code, test it. In other words, I wasted one hour of my life.</p>
+<p>However, they had an example of the kind of programming problem they would ask people to solve. The problem itself is not that interesting, nor was their fake walk-through, but I really liked their final solution. Since I’m procrastinating real work again and need to learn OCaml anyways, I implemented it. Let’s start at the beginning:</p>
+<blockquote>
+<p>Given a list of numbers, produce a list of numbers where every element is the product of all the elements in the input list excluding the element at the current index.</p>
+</blockquote>
+<p>That’s not the exact wording, but close enough.</p>
+<p>A naive, nested loops implementation is left as an exercise to the reader. It seemed to me like half the audience would have struggled with that already. Insert some lame comment about the state of the software industry here. My idea was to go through the list once and calculate the product of all the numbers. Then map across the input list, dividing the product of all the input elements by one input element at a time to produce the output list. There are some problems with that, but first a couple of examples to clarify, including my interpretation of boundary conditions.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>foo [] = []</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>foo [<span class="dv">42</span>] = [<span class="dv">1</span>] <span class="co">(* The fake interviewee used 0 for the empty product.</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co">                  I wouldn't have hired him... ;-) *)</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>foo [<span class="dv">1</span>; <span class="dv">2</span>; <span class="dv">3</span>; <span class="dv">4</span>] = [<span class="dv">24</span>; <span class="dv">12</span>; <span class="dv">8</span>; <span class="dv">6</span>]</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>foo [<span class="dv">3</span>; <span class="dv">0</span>; <span class="dv">2</span>] = [<span class="dv">0</span>; <span class="dv">6</span>; <span class="dv">0</span>] <span class="co">(* If there is exactly one zero at position p</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co">                             in the input, every element in the output</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="co">                             is zero, except the one at position p. *)</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>foo [<span class="dv">3</span>; <span class="dv">4</span>; <span class="dv">0</span>; <span class="dv">1</span>; <span class="dv">2</span>] = [<span class="dv">0</span>; <span class="dv">0</span>; <span class="dv">24</span>; <span class="dv">0</span>; <span class="dv">0</span>]</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>foo [<span class="dv">3</span>; <span class="dv">4</span>; <span class="dv">0</span>; <span class="dv">0</span>; <span class="dv">2</span>] = [<span class="dv">0</span>; <span class="dv">0</span>; <span class="dv">0</span>; <span class="dv">0</span>; <span class="dv">0</span>] <span class="co">(* Two or more zeroes in the input</span></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co">                                         =&gt; output is all zeroes. *)</span></span></code></pre></div>
+<p>So, my idea of doing it in linear time was calculate the product, then divide it by each element to produce the output. Sounds easy enough. I actually thought about being careful to not divide by zero, but actually writing it up turned out to be trickier than expected. This is my working version, after more iterations than I care to admit.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> foo l =</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> p = <span class="dt">ref</span> <span class="dv">1</span> <span class="kw">in</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> z = <span class="dt">ref</span> <span class="dv">0</span> <span class="kw">in</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">List</span>.iter (<span class="kw">fun</span> x -&gt; <span class="kw">if</span> x = <span class="dv">0</span> <span class="kw">then</span> z := !z+<span class="dv">1</span> <span class="kw">else</span> p := !p*x) l;</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">List</span>.map  (<span class="kw">fun</span> x -&gt; <span class="kw">if</span> x = <span class="dv">0</span> <span class="kw">then</span> (<span class="kw">if</span> !z &gt;= <span class="dv">2</span> <span class="kw">then</span> <span class="dv">0</span> <span class="kw">else</span> !p)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                      <span class="kw">else</span> (<span class="kw">if</span> !z &gt;= <span class="dv">1</span> <span class="kw">then</span> <span class="dv">0</span> <span class="kw">else</span> !p/x)) l;;</span></code></pre></div>
+<p>We iterate through the input once to calculate the product <code>p</code> (excluding zeroes) and counting zeroes. We then map over the input, to divide the product by each element. This requires some care. If the input at the current position is zero, we either return the product <code>p</code>, in case there is only one zero, or <code>0</code> in case there are were more than two zeroes in the input. If the input is not zero we can safely divide by it, but if there is at least one zero in the input, we need to return <code>p</code>. Remember calculated the product of all the nonzero inputs.</p>
+<p>It works, but I’m unhappy with it. The nested conditionals are unwieldy. Calculating the product without zeroes is needed for the case where there’s only one zero, but for the case with more than one zero, it would be better to have included zeroes. It’s just not nice. That’s why I like their solution so much, because it is uniform. Here’s the idea: map over the input twice. The first time, go from the left and produce an output list that has the partial product of all the input elements to the left. The second time, go from the right and produce an output list that has the partial product of all the input elements to the right. Zip together the lists with <code>( * )</code>.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> foo2 l =</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> makeMult = <span class="kw">fun</span> () -&gt; <span class="kw">let</span> p = <span class="dt">ref</span> <span class="dv">1</span> <span class="kw">in</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                           <span class="kw">let</span> f = <span class="kw">fun</span> x -&gt; <span class="kw">let</span> r = !p</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                                            <span class="kw">in</span> p := r*x; r <span class="kw">in</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                           f <span class="kw">in</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> fromLeft =  <span class="dt">List</span>.map     (makeMult ())           l  <span class="kw">in</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> fromRight = <span class="dt">List</span>.rev_map (makeMult ()) (<span class="dt">List</span>.rev l) <span class="kw">in</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">List</span>.map2 ( * ) fromLeft fromRight;;</span></code></pre></div>
+<p>The <code>makeMult</code> business is a bit ugly. However, OCaml does not seem to provide <code>reductions</code> (from Clojure) or <code>scanl</code>/<code>scanr</code> (from Haskell). Anyways, for the input <code>[3; 4; 0; 1; 2]</code> we produce <code>[1; 3; 12; 0; 0]</code> and <code>[0; 0; 2; 2; 1]</code> and then multiply these two together (element-wise) to produce <code>[0; 0; 24; 0; 0]</code>. No conditionals! In the workshop, the fake-interview was done in Java, and the interviewee switched to arrays for the final solution. It clouds the intent a bit, going through an array from the end is probably faster than reversing a list. There are arrays in OCaml, so without further ado, here’s my implementation.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode ocaml"><code class="sourceCode ocaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> foo3 a =</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> r = <span class="dt">Array</span>.make (<span class="dt">Array</span>.length a) <span class="dv">0</span> <span class="kw">in</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> <span class="kw">rec</span> loopFromLeft i p =</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> i = <span class="dt">Array</span>.length a <span class="kw">then</span> ()</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">else</span> (r.(i) &lt;- p;</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>          loopFromLeft (i+<span class="dv">1</span>) (p * a.(i))) <span class="kw">in</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> <span class="kw">rec</span> loopFromRight i p =</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">if</span> i &lt; <span class="dv">0</span> <span class="kw">then</span> r</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">else</span> (r.(i) &lt;- r.(i) * p;</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>          loopFromRight (i<span class="dv">-1</span>) (p*a.(i))) <span class="kw">in</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  loopFromLeft <span class="dv">0</span> <span class="dv">1</span>;</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  loopFromRight ((<span class="dt">Array</span>.length a)<span class="dv">-1</span>) <span class="dv">1</span>;;</span></code></pre></div>
+<p>Note that we only allocate one array for the output, no additional intermediary arrays to store the from left and from right results. It just goes into the output array directly. I really like the algorithm, but OCaml makes it a bit noisy to implement, by not having <code>for</code> loops. It is actually prettier in Java.</p>
+<p>This can not stand. So here’s a Common Lisp version with heavy use of <code>loop</code>.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode commonlisp"><code class="sourceCode commonlisp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(<span class="kw">defun</span><span class="fu"> foo </span>(a)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  (<span class="kw">let</span> ((r (<span class="kw">make-array</span> (<span class="kw">length</span> a))))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">loop</span> for p <span class="op">=</span> <span class="dv">1</span> then (<span class="op">*</span> p (<span class="kw">aref</span> a i))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>          for i from <span class="dv">0</span> below (<span class="kw">length</span> a)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>          <span class="kw">do</span> (<span class="kw">setf</span> (<span class="kw">aref</span> r i) p))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    (<span class="kw">loop</span> for p <span class="op">=</span> <span class="dv">1</span> then (<span class="op">*</span> p (<span class="kw">aref</span> a i))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>          for i from (<span class="op">1-</span> (<span class="kw">length</span> a)) downto <span class="dv">0</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>          <span class="kw">do</span> (<span class="kw">setf</span> (<span class="kw">aref</span> r i) (<span class="op">*</span> p (<span class="kw">aref</span> r i))))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    r))</span></code></pre></div>
+<p>I dislike the <code>below</code> vs. <code>downto</code> thing and the <code>(1- (length a))</code>. If we have different loop clauses for incluse and exclusive end, why not for inclusive and exclusive start? I also dislike the duplication of the location in the last <code>setf</code>. Clojure has these functions that update an atom. They take the atom and a function and replace the value of the atom with the function applied to the value that was in the atom. Why can’t we write something like this instead of the last <code>setf</code>: <code>(updatef (aref r i) (lambda (v) (* p v)))</code>. It’s not shorter, but prettier. Note sure it’s as pretty as Java. On the other hand, multiplying values quickly overflows 32 bit ints and I certainly prefer the Common Lisp version to a bignum version in Java.</p>
+<p>The code is on <a href="https://github.com/fehrenbach/playground/tree/master/google-interview-talk">github</a>.</p>
+</article>
+
+    </section>
+  </body>
+</html>

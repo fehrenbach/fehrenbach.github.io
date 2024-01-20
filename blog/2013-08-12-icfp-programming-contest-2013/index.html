@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2013-08-12
+  </header>
+  <h1 id="icfp-programming-contest-2013">ICFP Programming Contest 2013</h1>
+<p>Over the last weekend I participated in the <a href="http://en.wikipedia.org/wiki/ICFP_Programming_Contest">ICFP Programming Contest</a> for the first time. It was a lot of fun.</p>
+<p>Find the problem description <a href="http://icfpc2013.cloudapp.net/">here</a>. I quote the prologue which gives a nice idea.</p>
+<blockquote>
+<p>Game: I have a program A, and I want you to guess it. <br />
+Player: Can you tell me what is A(16), A(42) and A(128)? <br />
+Game: Sure, A(16) = 17, A(42) = 43, and A(128) = 129. <br />
+Player: Is the program B0, where B0(x) = x + 1? <br />
+Game: No dice, A(9) = 9, but B0(9) = 10. <br />
+Player: What is A(11), A(12) then? <br />
+Game: Since you ask so nicely: A(11) = 11, A(12) = 13. <br />
+Player: Is the program B1, where B1(x) = if ((x &amp; 1) ^ 1) = 0 then x else x + 1 <br />
+Game: That’s right! You score one point. I have a program A’, and want you to guess it. <br />
+Player: Argh!!!</p>
+</blockquote>
+<p>Below you find some general conclusions and after that, for the patient reader, a report that I wrote mostly during the contest and edited slightly today. It is probably not interesting to anybody but myself.</p>
+<h2 id="conclusions">Conclusions</h2>
+<p>It really was a lot of fun, I cannot emphasize this enough. If you have never participated, you should!</p>
+<p>We used a central git repository on github were everybody had push access. Everybody had, of course, their local working repository. We did not use personal repositories on github and made pull requests from there. Tillmann used pull requests from main repo branches to alert people of what he did, but in the end, I don’t think we merged any. People used feature branches but there was no strict policy for master. Nevertheless it contained a working system most of the time.</p>
+<p>We used Haskell for all the main stuff. My Haskell skills are rather limited, but it was really nice to work with. The type system gives a lot of confidence that merged code does not break anything. Thomas had an interesting encounter with the type system. He used <code>read</code> to get a command line parameter, which was originally an <code>Int</code> and pass it to some other function. Someone later changed the called function to expect <code>[Int]</code>. This implicitly changed <code>read :: Int</code> to <code>read :: [Int]</code> but of course this broke the command line interface, which would then require not <code>$ program 5</code> but <code>$ program [5]</code>.</p>
+<p>I was not involved in the proxy server that was written in Ruby, but the people who were spend some time debugging it while the Haskell people made fun of them for getting type errors at runtime. I don’t know too much about Ruby but it apparently also fails somewhat at detecting undefined names, probably on purpose because of this <code>method_missing</code> stuff.</p>
+<p>Process-wise I could imagine some improvements. In the end we had a couple of unmerged improvements like the data parallel execution of programs. This was not difficult to integrate, only nobody did it. We did not explicitly define interfaces between components, but this turned out to work fine. We had some duplicated effort, which is not necessarily bad, but at a couple of times nobody seemed to have any idea what most other people were doing. Maybe somebody could have slipped into a management role and try to keep an overview over what people are doing and who is familiar with/responsible for different parts of the code base.</p>
+<h2 id="friday">Friday</h2>
+<p><img style="width:40%; float:right; margin-left: 1em" src="friday.jpg" /></p>
+<p>First meeting at 10 am local time in the coffee room at the university. The initial discussion was not very orderly. But we managed to identify four subtask and split our team of 8 evenly to address:</p>
+<ul>
+<li>Network interface</li>
+<li>Interpreter for \BC</li>
+<li>Testing the interpreter</li>
+<li>Statistics about our problems</li>
+</ul>
+<p>We decided on Haskell for our main programming language.</p>
+<p>I was on the statistics team. The idea was to analyze our problem metadata. First some very basic numbers like the amount of problems and a size histogram, then any interesting properties, like large problems with few operators and whatever else we would think of. My team member did not know Haskell, nor were the both of us proficient in Julia or R. I would have liked Python, but we decided on Java to do the statistics stuff. It wasn’t very clear what we actually wanted to know and until lunch we did not get much more done than installing Eclipse, parsing the myproblems JSON document and counting the problems – 1420. After lunch, we set out to ask more complicated questions and it became clear that Java is totally the wrong language for this. I imported the data into an SQLLite database, which was nice for querying, but in the end we did not actually use it much. In the following days I wrote some Java code that basically loaded the problems and generated Haskell code that would represent the whole dataset and allow some simple queries for metadata. In retrospect, this statistics stuff we did was not very useful, but perhaps we just did not do enough of it to actually guide the generator development.</p>
+<p>In the early evening we had a working interpreter and some networking code. Thomas moved on to write the first brute force program generator. It generated all programs of a given size using given operators. All in all there was some real progress, but still had not submitted a single solution and this was when lightning division had about 6 hours left.</p>
+<p>This was a theme that continued over the whole weekend. We had everything working to submit correct solutions (for a subset of problems) but were to afraid to actually run it on real problems.</p>
+<p>We discussed about simplified programs, that in the other direction would be optimizations like constant folding. This resulted in the decision to not generate all programs of a given size but avoid useless expressions like <code>(and subexpression 0)</code>. In exchange we need to generate also all smaller programs to a problem of given size, to not miss solutions. Consider a problem of size 5:</p>
+<pre><code>(lambda (input) (and input 0))</code></pre>
+<p>Because we would not generate the useless <code>and</code>, we need to generate a problem of size 3 instead:</p>
+<pre><code>(lambda (input) 0)</code></pre>
+<p>At about 11 pm we actually had a working main loop that could fetch a training problem, guess a solution and submit it. It worked! I went home shortly after midnight, when we just had started to solve some real problems.</p>
+<h2 id="saturday">Saturday</h2>
+<p>I arrived in the late morning, and it took some time to get up to speed again. After I had left the day before we managed to make 100 points!</p>
+<p>Our approach was still basically brute force plus some limited cleverness. We avoid using operators that are not in the problem meta data and do not generate some equivalent programs. For example we do not generate both <code>(lambda (input) (xor 1 input))</code> and <code>(lambda (input) (xor input 1))</code>.</p>
+<p>The first half of Saturday, Thomas optimized the generator. In retrospect much of this time was wasted.</p>
+<p>I worked with Paolo on making our interpreter data parallel. We execute every program on at least 256 inputs and compare with the outputs their program gives (from an eval request). Before, the program was just executed for every input. The data parallel idea is to execute the program for a whole input vector at once, thus saving interpretation overhead. Basically the idea was to change eval from <code>eval :: Word64 -&gt; Program -&gt; Word64</code> to <code>eval :: [Word64] -&gt; Program -&gt; [Word64]</code>. We changed the eval function to be in Applicative and ran the whole thing in the identity monad with the idea of switching this to Control.Applicative.ZipList and getting the data parallel execution for free. The test run using the identity monad seemed to work except for the fold case which we left out, because we did not find an applicative foldr.</p>
+<p>Meanwhile, Tillmann worked on the same problem, but wrote it in direct style and using vectors. This is probably what I would have done on my own, because I have no experience with the applicative stuff. Anyway, this was a somewhat unfortunate duplication of effort, but not too bad for me personally, since I actually learned something. I think we should have gone with the direct style version, because it was very much more readable and actually covered all cases. But somehow we forgot about this whole direction of work and the final interpreter was not data parallel at all.</p>
+<p>Later that day, I was thinking whether a stack representation of programs, think Forth, would be more convenient to generate and/or evaluate. I concluded that it propably does not get us anything, because it does not make it easier to generate reasonable programs and AST size is not the problem. We don’t seem to actually know what the problem with our program generator is, currently. It has been improved by a lot, but still there seems to be a space leak.</p>
+<p>Tillmann and Felix use Windows, where some test cases of the interpreter fail. It’s only the <code>not</code> operation, which is implemented using <code>complement</code> on <code>Word64</code>. It works fine for everybody else, on various Haskell versions on various Linuxes and OS Xs. Both Windows machines seems to drop the first two bytes, but not in GHCi and maybe only when printing using <code>showHex</code>. We tried to isolate the problem but ultimately gave up and decided to just not use these machines for real guessing.</p>
+<p>I had a look at the bonus problems and they seemed to follow a pattern. There is a toplevel <code>if0</code> and nothing more interesting, no <code>if0</code>, no <code>fold</code>. We figured our existing brute force generator might be fast enough to solve the bonus problems with some special casing. We implemented the specializied generator, that basicall generates the toplevel <code>if0</code> and then calls the brute force generator (which already only uses operators from a given list, so we pass the meta data operator list with neither <code>if0</code> removed). Currently we can solve problems of size 19, I think. Because <code>if0</code> and <code>fold</code> are the most expensive operators, we figured we might be able to solve the bonus problems which range from, I think, 19 to 25. No dice. It got up to using 10 GiB of memory, at which point we killed the process. Later we found out that there actually are bonus problems that contain more than one <code>if0</code>.</p>
+<p><img style="width:40%; float:right; margin-left: 1em" src="saturday.jpg" /></p>
+<p>In the evening, people are working on three new generators which are all supposed to be smarter. Also, we started to design and implement a proxy for the game server that tries to partition the problem space and distribute the solving process across multiple machines.</p>
+<p>When I left we just got one of the new, smarter generators working. It takes the input output list and only generates programs that satisfy these constraint. As far as I understand, it uses some sort of tri-state logic stuff. One of the other new generators was also based on tri-state logic but I have been told that there were some differences. When I left this new generator had just solved a size 25 problem in seconds. It was looking very good :-)</p>
+<h2 id="sunday">Sunday</h2>
+<p>People worked till early in the morning. Apparently the success on the size 25 problem was accidental, in the sense that the solution was much smaller, something like 12. This is fine, but we cannot expect to have this happen for all larger programs.</p>
+<p>The other two smarter generators were abandoned.</p>
+<p>We did some more work on the size 42 bonus problems. Jona had downloaded lots of them, renamed the input varible and removed duplicates. He came up with a list of 90 solutions. We figured that maybe all bonus problems were in this list. We weren’t certain so we did another run of downloading and removing duplicates and came up with 96 solutions. So the list did not contain all solutions but apparently a large subset. Later that day I nevertheless wrote a generator that tries programs from this fixed list and shortly before the contest ended we actually ran it on some of the “size 42” bonus problems.</p>
+<p>I pretty printed a couple hundred bonus problem solutions to maybe see a common structure, but except for the toplevel if0, which we already knew, I did not come up with much.</p>
+<p><img style="width:40%; float:right; margin-left: 1em" src="sunday.jpg" /></p>
+<p>Over Sunday I lost my overview about what people were doing. There was some work on the new generator which was greatly improved as far as I understand. Others were working heavily on the proxy server (written in Ruby) and the respective client code for the distribution stuff.</p>
+<p>In the end we used both the old and new generators, as well as the hard coded list of bonus problem solutions for a time, on two clusters of 16 and 3 machines. It is my understanding that we were actually limited mostly by requests in the end. This is rather unfortunate, because we actually only really started submitting solutions about 4-6 hours before the contest ended. We could have started on the easier/smaller problems way before then but somehow it just did not happen.</p>
+</article>
+
+    </section>
+  </body>
+</html>

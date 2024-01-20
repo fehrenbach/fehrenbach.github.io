@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2018-04-28
+  </header>
+  <h1 id="efficient-updates-for-closed-records-in-purescript">Efficient updates for closed records in PureScript</h1>
+<p>In JavaScript you can change the value of a field in a record like this:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}<span class="op">;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>r<span class="op">.</span><span class="at">b</span> <span class="op">=</span> <span class="dv">9</span><span class="op">;</span>                <span class="co">// or r[&quot;b&quot;] = 9;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(r)<span class="op">;</span>         <span class="co">// {a: 5, b: 9}</span></span></code></pre></div>
+<p>PureScript’s records are immutable.
+“Updating” a record field returns a new record with the updated field, but leaves the original record untouched.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode purescript"><code class="sourceCode purescript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- assume some unsafe  log :: forall a. a -&gt; Eff ()</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> r <span class="ot">=</span> {a<span class="op">:</span> <span class="dv">5</span>, b<span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> r' <span class="ot">=</span> r { b <span class="ot">=</span> <span class="dv">9</span> }</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span> r                  <span class="co">-- {a: 5, b: 7}</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span> r'                 <span class="co">-- {a: 5, b: 9}</span></span></code></pre></div>
+<p>The record update itself compiles to something like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r<span class="st">' = (function () {</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> res <span class="op">=</span> {}<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (<span class="kw">var</span> f <span class="kw">in</span> r) {</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>     <span class="cf">if</span> (<span class="bu">Object</span><span class="op">.</span><span class="at">prototype</span><span class="op">.</span><span class="at">hasOwnProperty</span><span class="op">.</span><span class="fu">call</span>(r<span class="op">,</span> f)) {</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        res[f] <span class="op">=</span> r[f]<span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>     }</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  res<span class="op">.</span><span class="at">b</span><span class="op">=</span><span class="dv">9</span><span class="op">;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> res<span class="op">;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>})()</span></code></pre></div>
+<p>First we make a copy of the record being updated, <code>r</code> in this case.
+Then we (destructively) update the field in the copy.
+PureScript compiles to ES3, otherwise we could use <code>Object.assign</code> (ES6, not in IE) instead like this: <code>Object.assign({}, r, {b: 9})</code>.</p>
+<h2 id="enter-types">Enter types</h2>
+<p>PureScript is a statically typed language and has built-in record types.
+The type of <code>r</code> and <code>r'</code> above is <code>{a :: Int, b :: Int}</code>.
+Given this information, we can generate better code for record updates.
+Because we know exactly which fields get new values and which fields take their value from the input record, we can just construct the right new record without iterating over the input record.
+In our example that would look something like this:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r<span class="st">' = {a: r.a, b: 9}  // no update, just construct the right record</span></span></code></pre></div>
+<p>This is around 100 times faster in both Firefox and Chrome.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<h2 id="open-records">Open records</h2>
+<p>PureScript supports row polymorphism.
+Which means that expressions, in particular functions, can operate on records of different shapes.
+An <em>open</em> record type looks like this: <code>{b :: Int | foo}</code>.
+This indicates a record that has at least a field <code>b</code> with type <code>Int</code>, but the rest of the record’s fields are indicated by the type variable <code>foo</code>.
+This allows us to write a function like the following which increases the integer-valued field <code>count</code> of any record:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode purescript"><code class="sourceCode purescript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">incCount ::</span> <span class="kw">forall</span> row<span class="op">.</span> {<span class="ot"> count ::</span> <span class="dt">Int</span> <span class="op">|</span> row } <span class="ot">-&gt;</span>  {<span class="ot"> count ::</span> <span class="dt">Int</span> <span class="op">|</span> row }</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>incCount r <span class="ot">=</span> r { count <span class="ot">=</span> r<span class="op">.</span>count <span class="op">+</span> <span class="dv">1</span> }</span></code></pre></div>
+<p>Because we don’t know exactly what fields the record will have, we cannot use this trick to compile <code>incCount</code>.
+We have to fall back to using the loop, or perhaps <code>Object.assign</code> in the future.</p>
+<h2 id="conclusions">Conclusions</h2>
+<p>This turned out to be very easy to implement,<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> so PureScript 0.12 will generate better code for closed record updates thanks to types.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Find some <a href="https://jsperf.com/copyobj">jsperf experiments here</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Here’s the <a href="https://github.com/purescript/purescript/pull/3321">pull request</a>.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+</article>
+
+    </section>
+  </body>
+</html>
