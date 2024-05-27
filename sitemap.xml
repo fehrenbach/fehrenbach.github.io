@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/publications/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2024-05-27-cloudant-pouchdb-sync-cors-error/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2024-01-20-frink-in-nixpgks/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2018-10-26-fiftyfive-bytes-of-webassembly/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2018-04-28-efficient-updates-closed-records-purescript/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2018-04-20-provenance-in-the-wild-3/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2018-02-25-purescript-and-google-closure-notes/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2017-03-27-fail-better/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2017-03-22-grades-vs-politicians/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2017-03-01-it-s-easier-to-ask-forgiveness-than-it-is-to-get-permission/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2016-11-28-provenance-in-the-wild-2/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2016-03-29-provenance-in-the-wild/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2015-11-19-lean-prover/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2015-09-24-macbeth/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2015-03-03-writing-exercise/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2015-02-20-google-interview-example-problem/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2015-02-09-concatenating-numbers/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2014-09-19-leaving-marburg-next-stop-edinburgh/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2013-08-12-icfp-programming-contest-2013/index.html</loc>
+    </url>
+
+    <url>
+        <loc>http://stefan-fehrenbach.net/blog/2013-08-08-first-post/index.html</loc>
+    </url>
+
+</urlset>

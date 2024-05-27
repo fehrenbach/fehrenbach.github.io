@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2018-10-26
+  </header>
+  <h1 id="fiftyfive-bytes-of-webassembly">Fiftyfive bytes of WebAssembly</h1>
+<p>I implemented a persistent hash map in JavaScript some time ago.
+It uses the <code>popCount</code> function to count the number of 1-bits in the binary representation of a number to save space, it’s really cool.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>
+JavaScript’s standard library (unlike some other languages) does not have this function defined, so people use this implementation (which is from Hacker’s Delight, I think).</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">popCount</span> (n) {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> n <span class="op">-</span> ((n <span class="op">&gt;&gt;</span> <span class="dv">1</span>) <span class="op">&amp;</span> <span class="bn">0x55555555</span>)<span class="op">;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> (n <span class="op">&amp;</span> <span class="bn">0x33333333</span>) <span class="op">+</span> ((n <span class="op">&gt;&gt;</span> <span class="dv">2</span>) <span class="op">&amp;</span> <span class="bn">0x33333333</span>)<span class="op">;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((n <span class="op">+</span> (n <span class="op">&gt;&gt;</span> <span class="dv">4</span>) <span class="op">&amp;</span> <span class="bn">0xF0F0F0F</span>) <span class="op">*</span> <span class="bn">0x1010101</span>) <span class="op">&gt;&gt;</span> <span class="dv">24</span><span class="op">;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>To be honest, I only have a vague idea of how it works and currently no time to think about it.
+However, I do know that there’s a POPCNT instruction in my CPU (apparently introduced with SSE4 around 2007<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>).</p>
+<p>I also recently read a nice article about the future of WebAssembly.<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>
+Before, I did not really view WebAssembly very favourably.
+JavaScript is attractive as a compilation target because you get a high quality JIT compiler and runtime system for free.
+This is not yet true of WebAssembly and I don’t want to execute C++ applications in a browser.</p>
+<p>It turns out that WebAssembly also has a POPCNT instruction, though.
+Wouldn’t it be cool to use that instead of three lines of bittwiddling?</p>
+<p>Off I go to write the following WebAssembly program in the WebAssembly s-expression representation.
+This defines a module with one exported function called popcnt that takes a 32 bit integer and returns a 32 bit integer.
+The body of the function applies the 32 bit integer popcnt instruction to local 0 — the function’s first argument.</p>
+<pre class="webassembly"><code>(module
+  (func (export &quot;popcnt&quot;) (param i32) (result i32)
+    (i32.popcnt (get_local 0))))</code></pre>
+<p>Now, the typical workflow for serious WebAssembly use is way overkill.
+You use a compiler to compile your code (C, C++, Rust) to WebAssembly bytecode.
+You probably need some special cross compilation stuff too.
+Then you put the bytecode file onto some webserver somewhere, so your browser can see it and load it over the network.
+Then you need to feed the bytestream to the WebAssembly compiler in the browser.</p>
+<p>I don’t want to write a C/C++/Rust program for a single instruction and install their WebAssembly toolchains.
+There is a small tool to turn s-expression <code>.wat</code> files into a <code>.wasm</code> bytecode files called <code>wat2wasm</code>.
+I don’t want to install that either.
+Luckily there’s a demo website where you can also download the compiled <code>.wasm</code> file.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a></p>
+<p>I do that and use some Emacs macros to turn the binary file into a JavaScript source representation of an array of bytes. My WebAssembly popcount function comes out at 55 bytes, and they look like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bytes <span class="op">=</span> <span class="bu">Uint8Array</span><span class="op">.</span><span class="fu">from</span>([<span class="bn">0x00</span><span class="op">,</span><span class="bn">0x61</span><span class="op">,</span><span class="bn">0x73</span><span class="op">,</span><span class="bn">0x6d</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x06</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x60</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x7f</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x7f</span><span class="op">,</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x03</span><span class="op">,</span><span class="bn">0x02</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x07</span><span class="op">,</span><span class="bn">0x0a</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x06</span><span class="op">,</span><span class="bn">0x70</span><span class="op">,</span><span class="bn">0x6f</span><span class="op">,</span><span class="bn">0x70</span><span class="op">,</span><span class="bn">0x63</span><span class="op">,</span><span class="bn">0x6e</span><span class="op">,</span><span class="bn">0x74</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x0a</span><span class="op">,</span><span class="bn">0x07</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x05</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x20</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x69</span><span class="op">,</span><span class="bn">0x0b</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x0c</span><span class="op">,</span><span class="bn">0x04</span><span class="op">,</span><span class="bn">0x6e</span><span class="op">,</span><span class="bn">0x61</span><span class="op">,</span><span class="bn">0x6d</span><span class="op">,</span><span class="bn">0x65</span><span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x02</span><span class="op">,</span><span class="bn">0x05</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span>])<span class="op">;</span></span></code></pre></div>
+<p>Fun fact: the sequence 70 6f 70 63 6e 74 on the second line spells the name of the exported function: popcnt. (The other bytes probably mean something, too.)</p>
+<p>Great! We have some bytes without having to set up a webserver somewhere.
+Now let’s feed them to WebAssembly.
+We <code>instantiate</code> <em>something</em> with our bytecode in <code>bytes</code> and an empty record of JavaScript bindings to expose on the WebAssembly side.
+We get back a <code>Promise</code> of <em>something</em> which has an <code>instance</code> which has the <code>exports</code> of our WebAssembly module.
+In our case there’s only <code>popcnt</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>WebAssembly<span class="op">.</span><span class="fu">instantiate</span>(bytes<span class="op">,</span>{})<span class="op">.</span><span class="fu">then</span>(<span class="kw">function</span> (webassemblythingy) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> popcnt <span class="op">=</span> webassemblythingy<span class="op">.</span><span class="at">instance</span><span class="op">.</span><span class="at">exports</span><span class="op">.</span><span class="at">popcnt</span><span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">// rest of the code goes here where popcnt is in scope!</span></span></code></pre></div>
+<p>I have no idea how to synchronize on a Promise to go from async land back into sync land, so imagine the rest of the code being inside the callback.</p>
+<p>What can we do? Call popcnt! And it works!</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">0</span>))<span class="op">;</span> <span class="co">// =&gt; 0</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">1</span>))<span class="op">;</span> <span class="co">// =&gt; 1</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">2</span>))<span class="op">;</span> <span class="co">// =&gt; 1</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">3</span>))<span class="op">;</span> <span class="co">// =&gt; 2</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="op">-</span><span class="dv">1</span>))<span class="op">;</span> <span class="co">// =&gt; 32</span></span></code></pre></div>
+<p>We can also compare the JavaScript <code>popCount</code> against the WebAssembly <code>popcnt</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>    <span class="kw">var</span> count <span class="op">=</span> <span class="dv">1000000</span><span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">var</span> res <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">time</span>(<span class="st">&quot;wasm&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="kw">var</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> count<span class="op">;</span> i<span class="op">++</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        res <span class="op">+=</span> <span class="fu">popcnt</span>(i)<span class="op">;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">timeEnd</span>(<span class="st">&quot;wasm&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(res)<span class="op">;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Let's run the JS version for comparison.</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">time</span>(<span class="st">&quot;js&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="kw">var</span> j <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> j <span class="op">&lt;</span> count<span class="op">;</span> j<span class="op">++</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        res <span class="op">+=</span> <span class="fu">popcount</span>(j)<span class="op">;</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">timeEnd</span>(<span class="st">&quot;js&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(res)<span class="op">;</span></span></code></pre></div>
+<p>Here are some numbers out of this highly scientific benchmark:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><span class="math inline">10<sup>6</sup></span> calls in</th>
+<th style="text-align: right;">WASM (ms)</th>
+<th style="text-align: right;">JS (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Firefox 62</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">306</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">nodejs v10.11.0</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chromium 69</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Firefox 63</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">300</td>
+</tr>
+</tbody>
+</table>
+<p>Cool to see that Firefox 63 did indeed make WebAssembly calls faster.<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>
+Shame though that the JavaScript version is so much worse and the WebAssembly version is still only as fast as what v8 manages to generate from the JavaScript.</p>
+<p>Future <del>work</del> procrastination: check what all of this actually compiles to.
+Obviously these are not proper benchmarks.
+However, the numbers are all suspiciously close.
+It would be a shame to go through all of this trouble only to find out that they just use the same software implementation of POPCNT.
+On the other hand, I would be quite impressed if it turns out that v8 actually recognizes the software implementation and emits a POPCNT instruction.
+Also, check whether they work around the performance bug in Intel’s implementation.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a></p>
+<p>Find the code <a href="popcnt.js">here</a>.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>“Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM Collections” (Steindorfer and Vinju, OOPSLA 2015, <a href="https://doi.org/10.1145/2814270.2814312" class="uri">https://doi.org/10.1145/2814270.2814312</a>)<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT" class="uri">https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://hacks.mozilla.org/2018/10/webassemblys-post-mvp-future/" class="uri">https://hacks.mozilla.org/2018/10/webassemblys-post-mvp-future/</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p><a href="https://webassembly.github.io/wabt/demo/wat2wasm/" class="uri">https://webassembly.github.io/wabt/demo/wat2wasm/</a><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p><a href="https://hacks.mozilla.org/2018/10/calls-between-javascript-and-webassembly-are-finally-fast-%F0%9F%8E%89/" class="uri">https://hacks.mozilla.org/2018/10/calls-between-javascript-and-webassembly-are-finally-fast-%F0%9F%8E%89/</a><a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p><a href="https://www.pvk.ca/Blog/2014/08/16/how-to-define-new-intrinsics-in-sbcl/" class="uri">https://www.pvk.ca/Blog/2014/08/16/how-to-define-new-intrinsics-in-sbcl/</a><a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+</article>
+
+    </section>
+  </body>
+</html>

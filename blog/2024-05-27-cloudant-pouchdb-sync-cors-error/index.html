@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2024-05-27
+  </header>
+  <h1 id="cloudant-pouchdb-sync-not-cors-error">Cloudant PouchDB sync (not) CORS error</h1>
+<p>The other day, I spent more time than I should have looing into an issue syncing between a local PouchDB instance in Firefox and a remote CouchDB hosted by IBM Cloudant.
+The error messages were less than helpful, even outright misleading.
+Google was of little help.
+I have the vague feeling that I ran into this before, so this time I’m writing it down.</p>
+<p>Cloudant provides CouchDB hosting.
+This is very convenient, if like me, you loathe dealing with hosting infrastructure.
+They even have a free tier, which gets you a small CouchDB server for free.
+The free tier is limited to 1 GB storage, 20 reads/second, 5 writes/second.
+This is plenty for small personal projects that don’t have much data, are not particularly sensitive, and just need an always-on backend to sync with.</p>
+<p>Even in an offline-first browser application with PouchDB, you might want to synchronise data before rendering most of the UI, if possible.
+This avoids users of the application being greeted with a blank screen or less than up to date data.
+The naive way of doing one-shot downwards replication is doing something like this:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode ts"><code class="sourceCode typescript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> PouchDB<span class="op">.</span><span class="fu">replicate</span>(remoteDB<span class="op">,</span> localDB)<span class="op">;</span></span></code></pre></div>
+<p>At first, this might fail because you haven’t set up CORS.
+So you go to Cloudant settings, enable CORS for the relevant domains, or the wildcard domain (not recommended).
+You try again, and everything is fine.</p>
+<p>After a while, you accumulate a couple of hundred documents in your DB.
+In new browser instances (new device, wiped DB, maybe incognito mode), it will start to fail.
+In Firefox, this runs for a bit, then fails with error messages seemingly blaming CORS settings.</p>
+<figure>
+<img src="firefox-console-error.png" alt="Firefox console error saying things about CORS and Status code 429" />
+<figcaption aria-hidden="true">Firefox console error saying things about CORS and Status code 429</figcaption>
+</figure>
+<p>The weird thing is, you’re sure CORS is set up correctly.
+In fact, the synchronisation kind of works, but only a couple of documents at a time.</p>
+<p>After much head scratching, I finally, more or less by accident, had the Cloudant DB load page open <em>while</em> trying to sync.
+Turns out I was exceeding the request limit.
+What I got back from Cloudant where HTTP 429 Too Many Requests responses.
+The error message kind of says it, it’s just drowned out by the CORS stuff.</p>
+<p>I’m still not really sure who’s to blame here.<br />
+Cloudant are not setting the Access-Control-Allow-Origin header on 429 responses.
+That’s inconvenient, but I guess it’s understandable since the rate limiting responses should naturally be as cheap as possible.
+Also, their load graphs don’t show historical data.
+You have to have them open to spot the problem as it occurs.
+Still, they’re providing me with a very convenient, free as in beer service, so I really can’t complain.<br />
+Firefox tries to be helpful and links to CORS documentation.
+Unfortunately it’s a bit misleading.
+It says “Cross-Origin Request Blocked”, but in fact the <em>request</em> was made just fine, but happened to return a 429 response.
+(Maybe the <em>response</em> doesn’t make it to JS, because of the missing A-C-A-O header, I don’t know.)
+They provide me with a free as in speech browser, so I can’t really can’t complain.</p>
+<p>What to do about it?
+I can think of three bad options and one good option:</p>
+<ol type="1">
+<li><p>Retry in a loop.</p>
+<p>This is obviously not the right thing to do.
+But it makes some progress each time, so…
+I’m not proud to admit it, but I actually briefly tried this while figuring out what’s going on.</p></li>
+<li><p>Make one big request.</p>
+<p>This works due to a quirk in Cloudant’s accounting.
+They reject requests if the previous requests have exceeded the 20 reads/second window.
+If you bump the PouchDB limits to make one request for all documents at once, it just slips by.</p></li>
+<li><p>Make many small requests.</p>
+<p>PouchDB has options for number of concurrent replication batches and batch size.
+Setting them to very, very small values avoids the rate limit at the cost of making way too many requests.
+You basically replace being explicitly rate limited by Cloudant with being implicitly rate limited by network latency.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode ts"><code class="sourceCode typescript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> PouchDB<span class="op">.</span><span class="fu">replicate</span>(remoteDB<span class="op">,</span> localDB<span class="op">,</span> { batch_size<span class="op">:</span> <span class="dv">5</span><span class="op">,</span> batches_limit<span class="op">:</span> <span class="dv">1</span> })<span class="op">;</span></span></code></pre></div></li>
+<li><p>Make PouchDB aware of rate limits.</p>
+<p>This is of course the correct thing to do.
+I haven’t done it, at least not yet.
+PouchDB already has code for continuous background replication, which can deal with errors and has a configurable retry policy.
+It might not be too hard to adapt this to one-shot replication.</p></li>
+</ol>
+<p>I’m currently doing 3 and feeling bad about it.
+At the moment, I’m the only user of this application and I don’t typically use it on new machines.
+This definitely needs fixing, though.</p>
+</article>
+
+    </section>
+  </body>
+</html>

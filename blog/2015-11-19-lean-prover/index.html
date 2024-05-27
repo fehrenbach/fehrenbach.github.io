@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2015-11-19
+  </header>
+  <h1 id="the-lean-theorem-prover">The Lean Theorem Prover</h1>
+<p>Some time ago I heard about the <a href="http://leanprover.github.io/">Lean theorem prover</a>.
+I think it was before I interned at Microsoft Research.
+While I was there, someone mentioned it and its online tutorial.
+A couple weeks back I stumbled again over the Lean tutorial.
+This time I actually tried it.
+It’s cool.</p>
+<p>Compared to other proof assistants and dependently typed languages it is very approachable.
+The tutorial does not make too many assumptions.
+Most importantly, there is a code editor and a running Lean process right there in the browser.
+No fighting cabal or installing proof general to try things.</p>
+<p>So I worked through the tutorial, which has exercises!
+As with most things, I did not really have a reason.
+I did it for the fun of it.</p>
+<p>This week, Brian McKenna <a href="https://twitter.com/puffnfresh/status/666374219815641088">asked on Twitter</a> (presumably as an exercise) for a function that is both idempotent and an involution.</p>
+<blockquote>
+<p>Idempotent: f(f(x)) = f(x)<br />
+Involution: f(f(x)) = x</p>
+<p>Find functions with either property. How many functions can you find which have both?</p>
+</blockquote>
+<p>There is only one function with both properties: the identity function.</p>
+<p>He later linked to proofs in <a href="https://gist.github.com/puffnfresh/a00c026663b13e8d1ae3">Idris</a> and <a href="http://pastebin.com/LgNMr0sX">Coq</a>.
+I thought that would make a nice exercise in Lean.
+It is not exactly my problem, but, unlike exercises in the tutorial, it is also not explicitly positioned as a Lean exercise.
+There were solutions to take inspiration from, but my own ended up being quite different.</p>
+<pre class="lean"><code>open function
+
+lemma ideminvoid (A : Type)
+                 (f : A -&gt; A)
+                 (f_idem : forall x, f (f x) = f x)
+                 (f_invo : forall x, f (f x) = x)
+                 : forall x, f x = id x :=
+
+take x, calc f x = f (f x) : f_idem
+             ... = x       : f_invo
+             ... = id x    : rfl</code></pre>
+<p>I like the <code>calc</code> part of the proof.
+It reads very much like a proof on a whiteboard:
+<span class="math inline"><em>f</em>(<em>x</em>) = <em>f</em>(<em>f</em>(<em>x</em>))</span>, because <span class="math inline"><em>f</em></span> is idempotent; <span class="math inline"><em>f</em>(<em>f</em>(<em>x</em>)) = <em>x</em></span>, because <span class="math inline"><em>f</em></span> is an involution; <span class="math inline"><em>x</em> = <em>i</em><em>d</em>(<em>x</em>)</span>, because <code>rfl</code>, which stands for “just evaluate both sides and see that they are the same thing”, in this case, we just use the definition of <code>id</code>.</p>
+<p>Unfortunately, the tool support for doing actual proofs (as opposed to doing the tutorial) is a bit “meh” compared to Agda, Idris, and Coq.
+Lean has an Emacs mode, but it’s not great.
+I also don’t quite understand why they don’t use proof general.
+To be fair, it’s a very young project.</p>
+<p>Anyways, this is what a proof (by a complete beginner) in Lean looks like.</p>
+</article>
+
+    </section>
+  </body>
+</html>

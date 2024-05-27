@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2018-04-20
+  </header>
+  <p>In this iteration of <em>provenance in the wild</em> we have John Wiegley
+writing about no less than three topics I’m interested in:</p>
+<ol type="1">
+<li>provenance</li>
+<li>nix</li>
+<li>recursion schemes</li>
+</ol>
+<p>The context is <a href="https://github.com/jwiegley/hnix/">hnix</a>, a Haskell
+reimplementation of the <a href="https://nixos.org/nix/">nix</a> expression
+language. It is a pure, lazy, dynamically typed, functional language.
+On top of that the nix package manager is built. And on top of that
+NixOS, a Linux distribution. If you don’t know about nix, check it
+out. It’s awesome.</p>
+<p><a href="https://github.com/jwiegley/hnix/issues/183#issuecomment-382658027">Here is the Github
+issue</a>
+that describes the new <code>--trace</code> option to hnix. Hnix takes a nix
+expression as input and evaluates it. With the new <code>--trace</code> option,
+it also outputs a nix expression that is somehow smaller than the
+original input but produces the same output. I haven’t looked at the
+implementation, and I don’t see a formal definition of how the output
+nix expression is related to the input nix expression, but it sounds
+like <em>program slicing</em> to me, which is related closely enough to
+provenance for this to make it into the <em>provenance in the wild</em>
+series.</p>
+<p>I have thought about the possibility of doing something similar
+before, because Weili Fu, who started her PhD at the same time as me,
+works on provenance in the context of the configuration language
+Puppet. I’m happy similar things are happening in the real world.</p>
+<p>If you want to read more about slicing, my advisor and other Edinburgh
+people recently wrote an ICFP paper on slicing functional programs:
+<a href="https://doi.org/10.1145/3110258">Imperative Functional Programs that Explain their
+Work</a>, Wilmer Ricciotti, Jan
+Stolarek, Roly Perera and James Cheney. ICFP 2017.</p>
+<p>Here’s the blog post about the implementation:
+<a href="http://newartisans.com/2018/04/win-for-recursion-schemes/" class="uri">http://newartisans.com/2018/04/win-for-recursion-schemes/</a> Turns out
+hnix is based on recursion schemes and this allows for a very neat
+implementation. I really need to find time some day soon to have more
+than a cursory glance at recursion schemes.</p>
+</article>
+
+    </section>
+  </body>
+</html>

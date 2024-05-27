@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2018-02-25
+  </header>
+  <h1 id="purescript-and-google-closure-notes">PureScript and Google Closure notes</h1>
+<p>I have played around with PureScript and Google Closure sometime in
+the last couple of weeks. The interesting part is of course advanced
+compilation. It doesn’t work out of the box and there are some hurdles
+to getting it to work even in principle. I’m not going to work on it
+in the near future, but I want to write down some observations, just
+in case.</p>
+<p>The reason I have looked at Closure at all is that I keep thinking of
+ways to generated better JavaScript code from PureScript. We could not
+emit dictionaries for classes with no methods. We do not need an
+object as a dictionary if the class has only one method, we could pass
+the function itself. Specialize if the type is known. General
+inlining. Common subexpression elimination. Whatnot. Generating
+optimal code is a huge time sink. It would be nice if we could rely on
+Closure to do all the boring optimizations and only do cool
+language-specific optimizations in PureScript.</p>
+<h2 id="closure-as-a-bundler-only-simple-optimizations">Closure as a bundler only (simple optimizations)</h2>
+<p>In addition to its own <code>goog.module</code>-based module system, Closure
+nowadays also handles CommonJS modules and ES6 modules. The PureScript
+compiler <code>purs</code> produces CommonJS modules in the <code>output/</code> folder by
+default. This is how to call Closure to produce a single JavaScript
+file <code>bundle.js</code> with all modules bundled into one:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">closure-compiler</span> <span class="at">--process_common_js_modules</span> <span class="at">--module_resolution</span> NODE <span class="at">--dependency_mode</span> STRICT <span class="at">--entry_point</span> main.js <span class="at">--js</span> main.js <span class="at">--js</span> <span class="st">'output/**.js'</span> <span class="at">--js_output_file</span> bundle.js</span></code></pre></div>
+<p>Note the <code>--entry_point main.js</code> argument. PureScript does not
+actually generate code that invokes any <code>main</code> function. Assuming you
+have a module <code>Main</code>, this is a <code>main.js</code> file that actually causes
+side effects to happen:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">require</span>(<span class="st">'output/Main'</span>)<span class="op">.</span><span class="fu">main</span>()<span class="op">;</span></span></code></pre></div>
+<p>There can be multiple entry points. I think these are just modules
+assumed to be called from external code, and Closure will omit
+bundling any modules that are not transitively required by any entry
+point.</p>
+<p>You might want to add <code>--isolation_mode IIFE</code> which wraps the output
+in an immediately called function and enables further optimizations.</p>
+<p>This seems to work okay. It is not particularly fast (about the same
+as browserify). It is also not particularly good at reducing code
+size. In fact, in my tests it has been much better to use <code>purs bundle</code> and use Closure with simple optimizations on the resulting
+bundle. However, I think <code>purs bundle</code> cannot deal with npm
+dependencies. Closure does find modules in <code>node_modules</code>.</p>
+<h2 id="advanced-optimizations">Advanced optimizations</h2>
+<p>Just adding <code>-O ADVANCED</code> to the above command does not work.</p>
+<h3 id="constructors">Constructors</h3>
+<p>Advanced optimizations require every function that is used as a
+constructor/with the <code>new</code> keyword to be annotated with <code>/** @constructor */</code>. PureScript generates constructors for typeclass
+dictionaries (I think) and datatypes.</p>
+<p>I hacked the PureScript code generation to add <code>@constructor</code>
+annotations to capitalized functions. Note: the constructor annotation
+needs to be on the binder, not the function itself. This took me ages
+to figure out.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// This is okay</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> Foo <span class="op">=</span> <span class="kw">function</span> (<span class="op">...</span>) { <span class="op">...</span> }<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">// This is okay</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">Foo</span>(<span class="op">...</span>) { <span class="op">...</span> }</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// This is NOT okay</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> Foo <span class="op">=</span> <span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span> <span class="kw">function</span> ( <span class="op">...</span> ) { <span class="op">...</span> }<span class="op">;</span></span></code></pre></div>
+<h3 id="records">Records</h3>
+<p>The obvious problem, and what makes Closure advanced compilation so
+great/difficult are records. Just briefly: Closure renames record
+fields consistently if you use the non-string syntax for construction
+and projection. Closure would rename <code>field</code> in this <code>{field: 5}.field</code>, to <code>a</code>, or something. Well, this example would optimize to
+just 5, but you get the idea. However, Closure does not rename fields
+that introduced with the string syntax <code>{"field": 5}</code> or projected
+using the string/array syntax <code>record["field"]</code>. Now, if you mix these
+you are in trouble, because the <code>"field"</code> you are trying to project
+will likely have been renamed to <code>a</code>. The solution in JavaScript and
+ClojureScript is basically: people mostly use the non-string syntax
+because it’s shorter anyways, and you just have to be a bit careful to
+be consistent when you use strings.</p>
+<p>PureScript has an interesting challenge: <code>RowToList</code> and all the
+record stuff that builds on it like <code>records</code>, <code>simple-json</code>, and so
+forth. I think in theory the set of record labels that will possibly
+be projected is computable at compile time and with enough compiler
+smarts we could generate specialized getters and setters to enable
+consistent non-string label records. In practice, it’s pretty hopeless
+right now. I think the way to go would be to always emit record
+construction and projection using the string syntax.</p>
+<p>Note: the same is not true for datatypes and typeclass
+dictionaries. These should use non-string syntax. Their runtime
+representation is meant to be hidden from JavaScript anyway, so not
+even FFI code should be affected (much).</p>
+<p>I thought of another approach. We could have different kinds of
+labels, those that get renamed and those that don’t. PureScript
+already has string syntax for labels (for labels with names of
+keywords and similar parser-related reasons). I suppose one could
+hijack those to have basically the same distinction as in Closure,
+where plain labels are subject to renaming, and string labels are
+guaranteed to be preserved. This is a massive change to the language
+though, and almost definitely not worth it now.</p>
+<h3 id="other-thoughts">Other thoughts</h3>
+<p>One can annotate JavaScript with types that are used by Closure mostly
+for “typechecking” or at least linting and, supposedly,
+optimizations. While we could annotate at least some simple types, it
+is not clear how much would be gained.</p>
+<p>The PureScript culture uses fairly little foreign code and it tends to
+be well-isolated into a few FFI files. This could make
+writing/checking “externs” files a lot nicer than in less disciplined
+languages and communities.</p>
+<h2 id="conclusions">Conclusions</h2>
+<p>Closure with simple optimizations is not much better than other
+bundlers/minifiers. If you can, use <code>purs bundle</code> first, then run
+Closure on the result.</p>
+<p>My codegen hacks to the PureScript compiler made it possible to
+compile some very simple experiments (that did no use records) with
+Closure’s advanced optimizations to really, really good JavaScript. No
+curried functions. All typeclass indirection gone. Pretty much
+perfect. It will not work as well for more abstract code than just
+printing results of arithmetic expressions, of course.</p>
+<p>I don’t think it would be too hard to either change PureScript itself,
+or write an alternative backend, to produce Closure-compatible code. I
+still think the easy way to better performance is through using
+Closure, rather than reimplementing optimizations in the PureScript
+compiler.</p>
+</article>
+
+    </section>
+  </body>
+</html>

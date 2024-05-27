@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="robots" content="index, follow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stefan Fehrenbach</title>
+    <link rel="alternate" type="application/rss+xml" title="Blog RSS Feed" href="../../rss.xml" />
+    <style>
+     a { text-decoration: none; }
+     a:hover { text-decoration: underline; }
+
+     body > header {
+         width: 40em;
+         margin: auto;
+         margin-top: 0.8cm;
+         margin-bottom: 0.5cm;
+         font-size: 75%;
+     }
+
+     body > header a {
+         color: black;
+     }
+
+     body > header > a {
+         font-size: 150%;
+         font-weight: bold;
+     }
+
+     body > header > aside {
+         float: right;
+         text-align: left;
+         margin-top: 0.1cm;
+     }
+
+     body > header > aside > div.name {
+         float: left;
+         transform: translate(0, 60%);
+     }
+
+     body > header > aside > div.domain {
+         float: right;
+     }
+
+     body > nav {
+         text-align: center;
+         margin-bottom: 1cm;
+     }
+
+     body nav a {
+         color: black;
+         margin-left: .25em;
+         margin-right: .25em;
+     }
+
+     body article > header {
+         float: right;
+         margin-left: 4em;
+         margin-bottom: 1em;
+     }
+
+     body section {
+         margin: auto;
+         max-width: 45em;
+     }
+
+     pre > code {
+         display: block;
+         overflow-x: auto;
+     }
+
+     div.publications a strong {
+         color: black;
+     }
+
+     th {
+         font-weight: normal;
+         padding: .5em;
+         border-bottom: 1px solid black;
+     }
+
+     td {
+         padding: .5em;
+     }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <a href="https://www.stefan-fehrenbach.net">Stefan Fehrenbach</a>
+      <aside>
+          <a href="mailto:stefan.fehrenbach@gmail.com">stefan.fehrenbach@gmail.com</a>
+      </aside>
+    </header>
+
+    <nav>
+      <a href="../../index.html">Home</a>
+      <a href="../../publications/">Publications</a>
+      <a href="../../blog.html">Blog</a>
+    </nav>
+
+    <section>
+      <article>
+  <header>
+    2017-03-27
+  </header>
+  <h1 id="fail-better">Fail better</h1>
+<p>I have tried to use <a href="https://www.idris-lang.org/">Idris</a> a number of times in the past.
+I never got much further than copy &amp; pasting the definition of <code>Vect</code> and writing <code>append : Vect n t -&gt; Vect m t -&gt; Vect (n + m) t</code> and <code>zip : Vect n s -&gt; Vect n t -&gt; Vect n (s, t)</code>.</p>
+<p>I have glanced at Agda and its ternary mixfix operators and dabbled in Coq, where you can write all the fancy dependent types, but none of the functions.</p>
+<p>It never clicked, but I guess I must have learned <em>something</em>.</p>
+<p>Last week I started another toy project in Idris.
+I had problems with types, and solved them by adding proofs of properties and using them.
+I even made Idris generate some proofs for me.
+It is so much fun!</p>
+<p>Watch this space for an upcoming series on a tiny language with traced evaluation.</p>
+<p>What’s my point?
+Not sure.
+Persistence pays off in learning?</p>
+<p>My computer science teacher in high school had this quote from Worstward Ho by Samual Beckett on his door and I liked it even then.</p>
+<blockquote>
+<p>Ever tried.
+Ever failed.
+No matter.
+Try again.
+Fail again.
+Fail better.</p>
+</blockquote>
+<p>We did so much cool stuff. Program Turing Machines and microcode for some simulated CPU, write a meta-circular evaluator in Racket (which was called PLT Scheme back then), discuss the Entscheidungsproblem and proofs by diagonalisation.
+I did not appreciate it at the time.
+I wanted to write real programs™, in a real language, like Java™. 🤦</p>
+</article>
+
+    </section>
+  </body>
+</html>

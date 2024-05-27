@@ -1,0 +1,611 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"
+    xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Stefan Fehrenbach's blog</title>
+        <link>http://stefan-fehrenbach.net</link>
+        <description><![CDATA[]]></description>
+        <atom:link href="http://stefan-fehrenbach.net/rss.xml" rel="self"
+                   type="application/rss+xml" />
+        <lastBuildDate>Mon, 27 May 2024 00:00:00 UT</lastBuildDate>
+        <item>
+    <title>Cloudant PouchDB sync CORS error</title>
+    <link>http://stefan-fehrenbach.net/blog/2024-05-27-cloudant-pouchdb-sync-cors-error/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2024-05-27
+  </header>
+  <h1 id="cloudant-pouchdb-sync-not-cors-error">Cloudant PouchDB sync (not) CORS error</h1>
+<p>The other day, I spent more time than I should have looing into an issue syncing between a local PouchDB instance in Firefox and a remote CouchDB hosted by IBM Cloudant.
+The error messages were less than helpful, even outright misleading.
+Google was of little help.
+I have the vague feeling that I ran into this before, so this time I’m writing it down.</p>
+<p>Cloudant provides CouchDB hosting.
+This is very convenient, if like me, you loathe dealing with hosting infrastructure.
+They even have a free tier, which gets you a small CouchDB server for free.
+The free tier is limited to 1 GB storage, 20 reads/second, 5 writes/second.
+This is plenty for small personal projects that don’t have much data, are not particularly sensitive, and just need an always-on backend to sync with.</p>
+<p>Even in an offline-first browser application with PouchDB, you might want to synchronise data before rendering most of the UI, if possible.
+This avoids users of the application being greeted with a blank screen or less than up to date data.
+The naive way of doing one-shot downwards replication is doing something like this:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode ts"><code class="sourceCode typescript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> PouchDB<span class="op">.</span><span class="fu">replicate</span>(remoteDB<span class="op">,</span> localDB)<span class="op">;</span></span></code></pre></div>
+<p>At first, this might fail because you haven’t set up CORS.
+So you go to Cloudant settings, enable CORS for the relevant domains, or the wildcard domain (not recommended).
+You try again, and everything is fine.</p>
+<p>After a while, you accumulate a couple of hundred documents in your DB.
+In new browser instances (new device, wiped DB, maybe incognito mode), it will start to fail.
+In Firefox, this runs for a bit, then fails with error messages seemingly blaming CORS settings.</p>
+<figure>
+<img src="firefox-console-error.png" alt="Firefox console error saying things about CORS and Status code 429" />
+<figcaption aria-hidden="true">Firefox console error saying things about CORS and Status code 429</figcaption>
+</figure>
+<p>The weird thing is, you’re sure CORS is set up correctly.
+In fact, the synchronisation kind of works, but only a couple of documents at a time.</p>
+<p>After much head scratching, I finally, more or less by accident, had the Cloudant DB load page open <em>while</em> trying to sync.
+Turns out I was exceeding the request limit.
+What I got back from Cloudant where HTTP 429 Too Many Requests responses.
+The error message kind of says it, it’s just drowned out by the CORS stuff.</p>
+<p>I’m still not really sure who’s to blame here.<br />
+Cloudant are not setting the Access-Control-Allow-Origin header on 429 responses.
+That’s inconvenient, but I guess it’s understandable since the rate limiting responses should naturally be as cheap as possible.
+Also, their load graphs don’t show historical data.
+You have to have them open to spot the problem as it occurs.
+Still, they’re providing me with a very convenient, free as in beer service, so I really can’t complain.<br />
+Firefox tries to be helpful and links to CORS documentation.
+Unfortunately it’s a bit misleading.
+It says “Cross-Origin Request Blocked”, but in fact the <em>request</em> was made just fine, but happened to return a 429 response.
+(Maybe the <em>response</em> doesn’t make it to JS, because of the missing A-C-A-O header, I don’t know.)
+They provide me with a free as in speech browser, so I can’t really can’t complain.</p>
+<p>What to do about it?
+I can think of three bad options and one good option:</p>
+<ol type="1">
+<li><p>Retry in a loop.</p>
+<p>This is obviously not the right thing to do.
+But it makes some progress each time, so…
+I’m not proud to admit it, but I actually briefly tried this while figuring out what’s going on.</p></li>
+<li><p>Make one big request.</p>
+<p>This works due to a quirk in Cloudant’s accounting.
+They reject requests if the previous requests have exceeded the 20 reads/second window.
+If you bump the PouchDB limits to make one request for all documents at once, it just slips by.</p></li>
+<li><p>Make many small requests.</p>
+<p>PouchDB has options for number of concurrent replication batches and batch size.
+Setting them to very, very small values avoids the rate limit at the cost of making way too many requests.
+You basically replace being explicitly rate limited by Cloudant with being implicitly rate limited by network latency.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode ts"><code class="sourceCode typescript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="cf">await</span> PouchDB<span class="op">.</span><span class="fu">replicate</span>(remoteDB<span class="op">,</span> localDB<span class="op">,</span> { batch_size<span class="op">:</span> <span class="dv">5</span><span class="op">,</span> batches_limit<span class="op">:</span> <span class="dv">1</span> })<span class="op">;</span></span></code></pre></div></li>
+<li><p>Make PouchDB aware of rate limits.</p>
+<p>This is of course the correct thing to do.
+I haven’t done it, at least not yet.
+PouchDB already has code for continuous background replication, which can deal with errors and has a configurable retry policy.
+It might not be too hard to adapt this to one-shot replication.</p></li>
+</ol>
+<p>I’m currently doing 3 and feeling bad about it.
+At the moment, I’m the only user of this application and I don’t typically use it on new machines.
+This definitely needs fixing, though.</p>
+</article>
+]]></description>
+    <pubDate>2024-05-27</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2024-05-27-cloudant-pouchdb-sync-cors-error/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>frink in nixpgks</title>
+    <link>http://stefan-fehrenbach.net/blog/2024-01-20-frink-in-nixpgks/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2024-01-20
+  </header>
+  <p>I packaged the <a href="https://frinklang.org/">Frink</a> programming language for nix.
+Give it a go:</p>
+<pre><code>$ NIXPKGS_ALLOW_UNFREE=1 nix-shell --packages frink --run frink</code></pre>
+<p>Frink is a programming language with great support for units of measure.
+It is my go to desktop calculator these days.</p>
+<p>Here’s Hillel Wayne on Frink: <a href="https://www.hillelwayne.com/post/frink/" class="uri">https://www.hillelwayne.com/post/frink/</a></p>
+</article>
+]]></description>
+    <pubDate>2024-01-20</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2024-01-20-frink-in-nixpgks/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Fiftyfive bytes of WebAssembly</title>
+    <link>http://stefan-fehrenbach.net/blog/2018-10-26-fiftyfive-bytes-of-webassembly/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2018-10-26
+  </header>
+  <h1 id="fiftyfive-bytes-of-webassembly">Fiftyfive bytes of WebAssembly</h1>
+<p>I implemented a persistent hash map in JavaScript some time ago.
+It uses the <code>popCount</code> function to count the number of 1-bits in the binary representation of a number to save space, it’s really cool.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>
+JavaScript’s standard library (unlike some other languages) does not have this function defined, so people use this implementation (which is from Hacker’s Delight, I think).</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">popCount</span> (n) {</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> n <span class="op">-</span> ((n <span class="op">&gt;&gt;</span> <span class="dv">1</span>) <span class="op">&amp;</span> <span class="bn">0x55555555</span>)<span class="op">;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> (n <span class="op">&amp;</span> <span class="bn">0x33333333</span>) <span class="op">+</span> ((n <span class="op">&gt;&gt;</span> <span class="dv">2</span>) <span class="op">&amp;</span> <span class="bn">0x33333333</span>)<span class="op">;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> ((n <span class="op">+</span> (n <span class="op">&gt;&gt;</span> <span class="dv">4</span>) <span class="op">&amp;</span> <span class="bn">0xF0F0F0F</span>) <span class="op">*</span> <span class="bn">0x1010101</span>) <span class="op">&gt;&gt;</span> <span class="dv">24</span><span class="op">;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>To be honest, I only have a vague idea of how it works and currently no time to think about it.
+However, I do know that there’s a POPCNT instruction in my CPU (apparently introduced with SSE4 around 2007<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>).</p>
+<p>I also recently read a nice article about the future of WebAssembly.<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>
+Before, I did not really view WebAssembly very favourably.
+JavaScript is attractive as a compilation target because you get a high quality JIT compiler and runtime system for free.
+This is not yet true of WebAssembly and I don’t want to execute C++ applications in a browser.</p>
+<p>It turns out that WebAssembly also has a POPCNT instruction, though.
+Wouldn’t it be cool to use that instead of three lines of bittwiddling?</p>
+<p>Off I go to write the following WebAssembly program in the WebAssembly s-expression representation.
+This defines a module with one exported function called popcnt that takes a 32 bit integer and returns a 32 bit integer.
+The body of the function applies the 32 bit integer popcnt instruction to local 0 — the function’s first argument.</p>
+<pre class="webassembly"><code>(module
+  (func (export &quot;popcnt&quot;) (param i32) (result i32)
+    (i32.popcnt (get_local 0))))</code></pre>
+<p>Now, the typical workflow for serious WebAssembly use is way overkill.
+You use a compiler to compile your code (C, C++, Rust) to WebAssembly bytecode.
+You probably need some special cross compilation stuff too.
+Then you put the bytecode file onto some webserver somewhere, so your browser can see it and load it over the network.
+Then you need to feed the bytestream to the WebAssembly compiler in the browser.</p>
+<p>I don’t want to write a C/C++/Rust program for a single instruction and install their WebAssembly toolchains.
+There is a small tool to turn s-expression <code>.wat</code> files into a <code>.wasm</code> bytecode files called <code>wat2wasm</code>.
+I don’t want to install that either.
+Luckily there’s a demo website where you can also download the compiled <code>.wasm</code> file.<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a></p>
+<p>I do that and use some Emacs macros to turn the binary file into a JavaScript source representation of an array of bytes. My WebAssembly popcount function comes out at 55 bytes, and they look like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> bytes <span class="op">=</span> <span class="bu">Uint8Array</span><span class="op">.</span><span class="fu">from</span>([<span class="bn">0x00</span><span class="op">,</span><span class="bn">0x61</span><span class="op">,</span><span class="bn">0x73</span><span class="op">,</span><span class="bn">0x6d</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x06</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x60</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x7f</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x7f</span><span class="op">,</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x03</span><span class="op">,</span><span class="bn">0x02</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x07</span><span class="op">,</span><span class="bn">0x0a</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x06</span><span class="op">,</span><span class="bn">0x70</span><span class="op">,</span><span class="bn">0x6f</span><span class="op">,</span><span class="bn">0x70</span><span class="op">,</span><span class="bn">0x63</span><span class="op">,</span><span class="bn">0x6e</span><span class="op">,</span><span class="bn">0x74</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x0a</span><span class="op">,</span><span class="bn">0x07</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x05</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x20</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x69</span><span class="op">,</span><span class="bn">0x0b</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x0c</span><span class="op">,</span><span class="bn">0x04</span><span class="op">,</span><span class="bn">0x6e</span><span class="op">,</span><span class="bn">0x61</span><span class="op">,</span><span class="bn">0x6d</span><span class="op">,</span><span class="bn">0x65</span><span class="op">,</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                             <span class="bn">0x02</span><span class="op">,</span><span class="bn">0x05</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x01</span><span class="op">,</span><span class="bn">0x00</span><span class="op">,</span><span class="bn">0x00</span>])<span class="op">;</span></span></code></pre></div>
+<p>Fun fact: the sequence 70 6f 70 63 6e 74 on the second line spells the name of the exported function: popcnt. (The other bytes probably mean something, too.)</p>
+<p>Great! We have some bytes without having to set up a webserver somewhere.
+Now let’s feed them to WebAssembly.
+We <code>instantiate</code> <em>something</em> with our bytecode in <code>bytes</code> and an empty record of JavaScript bindings to expose on the WebAssembly side.
+We get back a <code>Promise</code> of <em>something</em> which has an <code>instance</code> which has the <code>exports</code> of our WebAssembly module.
+In our case there’s only <code>popcnt</code>.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>WebAssembly<span class="op">.</span><span class="fu">instantiate</span>(bytes<span class="op">,</span>{})<span class="op">.</span><span class="fu">then</span>(<span class="kw">function</span> (webassemblythingy) {</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> popcnt <span class="op">=</span> webassemblythingy<span class="op">.</span><span class="at">instance</span><span class="op">.</span><span class="at">exports</span><span class="op">.</span><span class="at">popcnt</span><span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="co">// rest of the code goes here where popcnt is in scope!</span></span></code></pre></div>
+<p>I have no idea how to synchronize on a Promise to go from async land back into sync land, so imagine the rest of the code being inside the callback.</p>
+<p>What can we do? Call popcnt! And it works!</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">0</span>))<span class="op">;</span> <span class="co">// =&gt; 0</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">1</span>))<span class="op">;</span> <span class="co">// =&gt; 1</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">2</span>))<span class="op">;</span> <span class="co">// =&gt; 1</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="dv">3</span>))<span class="op">;</span> <span class="co">// =&gt; 2</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="fu">popcnt</span>(<span class="op">-</span><span class="dv">1</span>))<span class="op">;</span> <span class="co">// =&gt; 32</span></span></code></pre></div>
+<p>We can also compare the JavaScript <code>popCount</code> against the WebAssembly <code>popcnt</code>.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>    <span class="kw">var</span> count <span class="op">=</span> <span class="dv">1000000</span><span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">var</span> res <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">time</span>(<span class="st">&quot;wasm&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="kw">var</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> count<span class="op">;</span> i<span class="op">++</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>        res <span class="op">+=</span> <span class="fu">popcnt</span>(i)<span class="op">;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">timeEnd</span>(<span class="st">&quot;wasm&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(res)<span class="op">;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Let&#39;s run the JS version for comparison.</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    res <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">time</span>(<span class="st">&quot;js&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (<span class="kw">var</span> j <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> j <span class="op">&lt;</span> count<span class="op">;</span> j<span class="op">++</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        res <span class="op">+=</span> <span class="fu">popcount</span>(j)<span class="op">;</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">timeEnd</span>(<span class="st">&quot;js&quot;</span>)<span class="op">;</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(res)<span class="op">;</span></span></code></pre></div>
+<p>Here are some numbers out of this highly scientific benchmark:</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><span class="math inline">10<sup>6</sup></span> calls in</th>
+<th style="text-align: right;">WASM (ms)</th>
+<th style="text-align: right;">JS (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Firefox 62</td>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;">306</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">nodejs v10.11.0</td>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Chromium 69</td>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">8</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Firefox 63</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;">300</td>
+</tr>
+</tbody>
+</table>
+<p>Cool to see that Firefox 63 did indeed make WebAssembly calls faster.<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>
+Shame though that the JavaScript version is so much worse and the WebAssembly version is still only as fast as what v8 manages to generate from the JavaScript.</p>
+<p>Future <del>work</del> procrastination: check what all of this actually compiles to.
+Obviously these are not proper benchmarks.
+However, the numbers are all suspiciously close.
+It would be a shame to go through all of this trouble only to find out that they just use the same software implementation of POPCNT.
+On the other hand, I would be quite impressed if it turns out that v8 actually recognizes the software implementation and emits a POPCNT instruction.
+Also, check whether they work around the performance bug in Intel’s implementation.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a></p>
+<p>Find the code <a href="popcnt.js">here</a>.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>“Optimizing Hash-Array Mapped Tries for Fast and Lean Immutable JVM Collections” (Steindorfer and Vinju, OOPSLA 2015, <a href="https://doi.org/10.1145/2814270.2814312" class="uri">https://doi.org/10.1145/2814270.2814312</a>)<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p><a href="https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT" class="uri">https://en.wikipedia.org/wiki/SSE4#POPCNT_and_LZCNT</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p><a href="https://hacks.mozilla.org/2018/10/webassemblys-post-mvp-future/" class="uri">https://hacks.mozilla.org/2018/10/webassemblys-post-mvp-future/</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p><a href="https://webassembly.github.io/wabt/demo/wat2wasm/" class="uri">https://webassembly.github.io/wabt/demo/wat2wasm/</a><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p><a href="https://hacks.mozilla.org/2018/10/calls-between-javascript-and-webassembly-are-finally-fast-%F0%9F%8E%89/" class="uri">https://hacks.mozilla.org/2018/10/calls-between-javascript-and-webassembly-are-finally-fast-%F0%9F%8E%89/</a><a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p><a href="https://www.pvk.ca/Blog/2014/08/16/how-to-define-new-intrinsics-in-sbcl/" class="uri">https://www.pvk.ca/Blog/2014/08/16/how-to-define-new-intrinsics-in-sbcl/</a><a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+</article>
+]]></description>
+    <pubDate>2018-10-26</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2018-10-26-fiftyfive-bytes-of-webassembly/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Efficient updates for closed records in PureScript 0.12</title>
+    <link>http://stefan-fehrenbach.net/blog/2018-04-28-efficient-updates-closed-records-purescript/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2018-04-28
+  </header>
+  <h1 id="efficient-updates-for-closed-records-in-purescript">Efficient updates for closed records in PureScript</h1>
+<p>In JavaScript you can change the value of a field in a record like this:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}<span class="op">;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>r<span class="op">.</span><span class="at">b</span> <span class="op">=</span> <span class="dv">9</span><span class="op">;</span>                <span class="co">// or r[&quot;b&quot;] = 9;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(r)<span class="op">;</span>         <span class="co">// {a: 5, b: 9}</span></span></code></pre></div>
+<p>PureScript’s records are immutable.
+“Updating” a record field returns a new record with the updated field, but leaves the original record untouched.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode purescript"><code class="sourceCode purescript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- assume some unsafe  log :: forall a. a -&gt; Eff ()</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">do</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> r <span class="ot">=</span> {a<span class="op">:</span> <span class="dv">5</span>, b<span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> r&#39; <span class="ot">=</span> r { b <span class="ot">=</span> <span class="dv">9</span> }</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span> r                  <span class="co">-- {a: 5, b: 7}</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">log</span> r&#39;                 <span class="co">-- {a: 5, b: 9}</span></span></code></pre></div>
+<p>The record update itself compiles to something like this:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r<span class="st">&#39; = (function () {</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">var</span> res <span class="op">=</span> {}<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (<span class="kw">var</span> f <span class="kw">in</span> r) {</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>     <span class="cf">if</span> (<span class="bu">Object</span><span class="op">.</span><span class="at">prototype</span><span class="op">.</span><span class="at">hasOwnProperty</span><span class="op">.</span><span class="fu">call</span>(r<span class="op">,</span> f)) {</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>        res[f] <span class="op">=</span> r[f]<span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>     }</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>  res<span class="op">.</span><span class="at">b</span><span class="op">=</span><span class="dv">9</span><span class="op">;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> res<span class="op">;</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>})()</span></code></pre></div>
+<p>First we make a copy of the record being updated, <code>r</code> in this case.
+Then we (destructively) update the field in the copy.
+PureScript compiles to ES3, otherwise we could use <code>Object.assign</code> (ES6, not in IE) instead like this: <code>Object.assign({}, r, {b: 9})</code>.</p>
+<h2 id="enter-types">Enter types</h2>
+<p>PureScript is a statically typed language and has built-in record types.
+The type of <code>r</code> and <code>r'</code> above is <code>{a :: Int, b :: Int}</code>.
+Given this information, we can generate better code for record updates.
+Because we know exactly which fields get new values and which fields take their value from the input record, we can just construct the right new record without iterating over the input record.
+In our example that would look something like this:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r <span class="op">=</span> {<span class="dt">a</span><span class="op">:</span> <span class="dv">5</span><span class="op">,</span> <span class="dt">b</span><span class="op">:</span> <span class="dv">7</span>}</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> r<span class="st">&#39; = {a: r.a, b: 9}  // no update, just construct the right record</span></span></code></pre></div>
+<p>This is around 100 times faster in both Firefox and Chrome.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<h2 id="open-records">Open records</h2>
+<p>PureScript supports row polymorphism.
+Which means that expressions, in particular functions, can operate on records of different shapes.
+An <em>open</em> record type looks like this: <code>{b :: Int | foo}</code>.
+This indicates a record that has at least a field <code>b</code> with type <code>Int</code>, but the rest of the record’s fields are indicated by the type variable <code>foo</code>.
+This allows us to write a function like the following which increases the integer-valued field <code>count</code> of any record:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode purescript"><code class="sourceCode purescript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ot">incCount ::</span> <span class="kw">forall</span> row<span class="op">.</span> {<span class="ot"> count ::</span> <span class="dt">Int</span> <span class="op">|</span> row } <span class="ot">-&gt;</span>  {<span class="ot"> count ::</span> <span class="dt">Int</span> <span class="op">|</span> row }</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>incCount r <span class="ot">=</span> r { count <span class="ot">=</span> r<span class="op">.</span>count <span class="op">+</span> <span class="dv">1</span> }</span></code></pre></div>
+<p>Because we don’t know exactly what fields the record will have, we cannot use this trick to compile <code>incCount</code>.
+We have to fall back to using the loop, or perhaps <code>Object.assign</code> in the future.</p>
+<h2 id="conclusions">Conclusions</h2>
+<p>This turned out to be very easy to implement,<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> so PureScript 0.12 will generate better code for closed record updates thanks to types.</p>
+<section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Find some <a href="https://jsperf.com/copyobj">jsperf experiments here</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>Here’s the <a href="https://github.com/purescript/purescript/pull/3321">pull request</a>.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+</article>
+]]></description>
+    <pubDate>2018-04-28</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2018-04-28-efficient-updates-closed-records-purescript/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Provenance in the wild &#35;3</title>
+    <link>http://stefan-fehrenbach.net/blog/2018-04-20-provenance-in-the-wild-3/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2018-04-20
+  </header>
+  <p>In this iteration of <em>provenance in the wild</em> we have John Wiegley
+writing about no less than three topics I’m interested in:</p>
+<ol type="1">
+<li>provenance</li>
+<li>nix</li>
+<li>recursion schemes</li>
+</ol>
+<p>The context is <a href="https://github.com/jwiegley/hnix/">hnix</a>, a Haskell
+reimplementation of the <a href="https://nixos.org/nix/">nix</a> expression
+language. It is a pure, lazy, dynamically typed, functional language.
+On top of that the nix package manager is built. And on top of that
+NixOS, a Linux distribution. If you don’t know about nix, check it
+out. It’s awesome.</p>
+<p><a href="https://github.com/jwiegley/hnix/issues/183#issuecomment-382658027">Here is the Github
+issue</a>
+that describes the new <code>--trace</code> option to hnix. Hnix takes a nix
+expression as input and evaluates it. With the new <code>--trace</code> option,
+it also outputs a nix expression that is somehow smaller than the
+original input but produces the same output. I haven’t looked at the
+implementation, and I don’t see a formal definition of how the output
+nix expression is related to the input nix expression, but it sounds
+like <em>program slicing</em> to me, which is related closely enough to
+provenance for this to make it into the <em>provenance in the wild</em>
+series.</p>
+<p>I have thought about the possibility of doing something similar
+before, because Weili Fu, who started her PhD at the same time as me,
+works on provenance in the context of the configuration language
+Puppet. I’m happy similar things are happening in the real world.</p>
+<p>If you want to read more about slicing, my advisor and other Edinburgh
+people recently wrote an ICFP paper on slicing functional programs:
+<a href="https://doi.org/10.1145/3110258">Imperative Functional Programs that Explain their
+Work</a>, Wilmer Ricciotti, Jan
+Stolarek, Roly Perera and James Cheney. ICFP 2017.</p>
+<p>Here’s the blog post about the implementation:
+<a href="http://newartisans.com/2018/04/win-for-recursion-schemes/" class="uri">http://newartisans.com/2018/04/win-for-recursion-schemes/</a> Turns out
+hnix is based on recursion schemes and this allows for a very neat
+implementation. I really need to find time some day soon to have more
+than a cursory glance at recursion schemes.</p>
+</article>
+]]></description>
+    <pubDate>2018-04-20</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2018-04-20-provenance-in-the-wild-3/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>PureScript and Google Closure notes</title>
+    <link>http://stefan-fehrenbach.net/blog/2018-02-25-purescript-and-google-closure-notes/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2018-02-25
+  </header>
+  <h1 id="purescript-and-google-closure-notes">PureScript and Google Closure notes</h1>
+<p>I have played around with PureScript and Google Closure sometime in
+the last couple of weeks. The interesting part is of course advanced
+compilation. It doesn’t work out of the box and there are some hurdles
+to getting it to work even in principle. I’m not going to work on it
+in the near future, but I want to write down some observations, just
+in case.</p>
+<p>The reason I have looked at Closure at all is that I keep thinking of
+ways to generated better JavaScript code from PureScript. We could not
+emit dictionaries for classes with no methods. We do not need an
+object as a dictionary if the class has only one method, we could pass
+the function itself. Specialize if the type is known. General
+inlining. Common subexpression elimination. Whatnot. Generating
+optimal code is a huge time sink. It would be nice if we could rely on
+Closure to do all the boring optimizations and only do cool
+language-specific optimizations in PureScript.</p>
+<h2 id="closure-as-a-bundler-only-simple-optimizations">Closure as a bundler only (simple optimizations)</h2>
+<p>In addition to its own <code>goog.module</code>-based module system, Closure
+nowadays also handles CommonJS modules and ES6 modules. The PureScript
+compiler <code>purs</code> produces CommonJS modules in the <code>output/</code> folder by
+default. This is how to call Closure to produce a single JavaScript
+file <code>bundle.js</code> with all modules bundled into one:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">closure-compiler</span> <span class="at">--process_common_js_modules</span> <span class="at">--module_resolution</span> NODE <span class="at">--dependency_mode</span> STRICT <span class="at">--entry_point</span> main.js <span class="at">--js</span> main.js <span class="at">--js</span> <span class="st">&#39;output/**.js&#39;</span> <span class="at">--js_output_file</span> bundle.js</span></code></pre></div>
+<p>Note the <code>--entry_point main.js</code> argument. PureScript does not
+actually generate code that invokes any <code>main</code> function. Assuming you
+have a module <code>Main</code>, this is a <code>main.js</code> file that actually causes
+side effects to happen:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">require</span>(<span class="st">&#39;output/Main&#39;</span>)<span class="op">.</span><span class="fu">main</span>()<span class="op">;</span></span></code></pre></div>
+<p>There can be multiple entry points. I think these are just modules
+assumed to be called from external code, and Closure will omit
+bundling any modules that are not transitively required by any entry
+point.</p>
+<p>You might want to add <code>--isolation_mode IIFE</code> which wraps the output
+in an immediately called function and enables further optimizations.</p>
+<p>This seems to work okay. It is not particularly fast (about the same
+as browserify). It is also not particularly good at reducing code
+size. In fact, in my tests it has been much better to use <code>purs bundle</code> and use Closure with simple optimizations on the resulting
+bundle. However, I think <code>purs bundle</code> cannot deal with npm
+dependencies. Closure does find modules in <code>node_modules</code>.</p>
+<h2 id="advanced-optimizations">Advanced optimizations</h2>
+<p>Just adding <code>-O ADVANCED</code> to the above command does not work.</p>
+<h3 id="constructors">Constructors</h3>
+<p>Advanced optimizations require every function that is used as a
+constructor/with the <code>new</code> keyword to be annotated with <code>/** @constructor */</code>. PureScript generates constructors for typeclass
+dictionaries (I think) and datatypes.</p>
+<p>I hacked the PureScript code generation to add <code>@constructor</code>
+annotations to capitalized functions. Note: the constructor annotation
+needs to be on the binder, not the function itself. This took me ages
+to figure out.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode javascript"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// This is okay</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> Foo <span class="op">=</span> <span class="kw">function</span> (<span class="op">...</span>) { <span class="op">...</span> }<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="co">// This is okay</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">function</span> <span class="fu">Foo</span>(<span class="op">...</span>) { <span class="op">...</span> }</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// This is NOT okay</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> Foo <span class="op">=</span> <span class="co">/** </span><span class="an">@constructor</span><span class="co"> */</span> <span class="kw">function</span> ( <span class="op">...</span> ) { <span class="op">...</span> }<span class="op">;</span></span></code></pre></div>
+<h3 id="records">Records</h3>
+<p>The obvious problem, and what makes Closure advanced compilation so
+great/difficult are records. Just briefly: Closure renames record
+fields consistently if you use the non-string syntax for construction
+and projection. Closure would rename <code>field</code> in this <code>{field: 5}.field</code>, to <code>a</code>, or something. Well, this example would optimize to
+just 5, but you get the idea. However, Closure does not rename fields
+that introduced with the string syntax <code>{"field": 5}</code> or projected
+using the string/array syntax <code>record["field"]</code>. Now, if you mix these
+you are in trouble, because the <code>"field"</code> you are trying to project
+will likely have been renamed to <code>a</code>. The solution in JavaScript and
+ClojureScript is basically: people mostly use the non-string syntax
+because it’s shorter anyways, and you just have to be a bit careful to
+be consistent when you use strings.</p>
+<p>PureScript has an interesting challenge: <code>RowToList</code> and all the
+record stuff that builds on it like <code>records</code>, <code>simple-json</code>, and so
+forth. I think in theory the set of record labels that will possibly
+be projected is computable at compile time and with enough compiler
+smarts we could generate specialized getters and setters to enable
+consistent non-string label records. In practice, it’s pretty hopeless
+right now. I think the way to go would be to always emit record
+construction and projection using the string syntax.</p>
+<p>Note: the same is not true for datatypes and typeclass
+dictionaries. These should use non-string syntax. Their runtime
+representation is meant to be hidden from JavaScript anyway, so not
+even FFI code should be affected (much).</p>
+<p>I thought of another approach. We could have different kinds of
+labels, those that get renamed and those that don’t. PureScript
+already has string syntax for labels (for labels with names of
+keywords and similar parser-related reasons). I suppose one could
+hijack those to have basically the same distinction as in Closure,
+where plain labels are subject to renaming, and string labels are
+guaranteed to be preserved. This is a massive change to the language
+though, and almost definitely not worth it now.</p>
+<h3 id="other-thoughts">Other thoughts</h3>
+<p>One can annotate JavaScript with types that are used by Closure mostly
+for “typechecking” or at least linting and, supposedly,
+optimizations. While we could annotate at least some simple types, it
+is not clear how much would be gained.</p>
+<p>The PureScript culture uses fairly little foreign code and it tends to
+be well-isolated into a few FFI files. This could make
+writing/checking “externs” files a lot nicer than in less disciplined
+languages and communities.</p>
+<h2 id="conclusions">Conclusions</h2>
+<p>Closure with simple optimizations is not much better than other
+bundlers/minifiers. If you can, use <code>purs bundle</code> first, then run
+Closure on the result.</p>
+<p>My codegen hacks to the PureScript compiler made it possible to
+compile some very simple experiments (that did no use records) with
+Closure’s advanced optimizations to really, really good JavaScript. No
+curried functions. All typeclass indirection gone. Pretty much
+perfect. It will not work as well for more abstract code than just
+printing results of arithmetic expressions, of course.</p>
+<p>I don’t think it would be too hard to either change PureScript itself,
+or write an alternative backend, to produce Closure-compatible code. I
+still think the easy way to better performance is through using
+Closure, rather than reimplementing optimizations in the PureScript
+compiler.</p>
+</article>
+]]></description>
+    <pubDate>2018-02-25</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2018-02-25-purescript-and-google-closure-notes/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Fail better</title>
+    <link>http://stefan-fehrenbach.net/blog/2017-03-27-fail-better/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2017-03-27
+  </header>
+  <h1 id="fail-better">Fail better</h1>
+<p>I have tried to use <a href="https://www.idris-lang.org/">Idris</a> a number of times in the past.
+I never got much further than copy &amp; pasting the definition of <code>Vect</code> and writing <code>append : Vect n t -&gt; Vect m t -&gt; Vect (n + m) t</code> and <code>zip : Vect n s -&gt; Vect n t -&gt; Vect n (s, t)</code>.</p>
+<p>I have glanced at Agda and its ternary mixfix operators and dabbled in Coq, where you can write all the fancy dependent types, but none of the functions.</p>
+<p>It never clicked, but I guess I must have learned <em>something</em>.</p>
+<p>Last week I started another toy project in Idris.
+I had problems with types, and solved them by adding proofs of properties and using them.
+I even made Idris generate some proofs for me.
+It is so much fun!</p>
+<p>Watch this space for an upcoming series on a tiny language with traced evaluation.</p>
+<p>What’s my point?
+Not sure.
+Persistence pays off in learning?</p>
+<p>My computer science teacher in high school had this quote from Worstward Ho by Samual Beckett on his door and I liked it even then.</p>
+<blockquote>
+<p>Ever tried.
+Ever failed.
+No matter.
+Try again.
+Fail again.
+Fail better.</p>
+</blockquote>
+<p>We did so much cool stuff. Program Turing Machines and microcode for some simulated CPU, write a meta-circular evaluator in Racket (which was called PLT Scheme back then), discuss the Entscheidungsproblem and proofs by diagonalisation.
+I did not appreciate it at the time.
+I wanted to write real programs™, in a real language, like Java™. 🤦</p>
+</article>
+]]></description>
+    <pubDate>2017-03-27</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2017-03-27-fail-better/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Grades vs Politicians</title>
+    <link>http://stefan-fehrenbach.net/blog/2017-03-22-grades-vs-politicians/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2017-03-22
+  </header>
+  <h1 id="grades-vs-politicians">Grades vs Politicians</h1>
+<p><a href="http://marginalrevolution.com/marginalrevolution/2017/03/wednesday-assorted-links-98.html">Marginal Revolution</a> linked to this article: <a href="http://loweringthebar.net/2017/03/guy-who-got-a-c-on-amendment.html">Guy Who Got a C on Constitutional-Amendment Paper GETS CONSTITUTION AMENDED</a>.</p>
+<p>My first thought was “oh no, some idiot passed some idiotic legislation”.</p>
+<p>Turns out the amendment in question seems reasonable.
+Congress can’t just raise its pay with immediate effect, there have to be elections in between, which would presumably give the new congress opportunity to undo it.
+But the amendment is not my point here.</p>
+<p>My concern is “some idiot”.
+I don’t think of myself as someone who always assumes the worst of people.
+I do think grades are a poor reflection of ability or aptitude.
+So why would I go into this article expecting to read about some idiot passing an idiotic law?</p>
+<p>I could have thought “see, grades are overrated”.</p>
+<p>This had me thinking.
+One option is, that I actually updated my prejudices to take into account recently acquired knowledge about grades.
+I used to think that grades are a complete waste for everyone involved.
+I was wrong.
+Standardized test scores predict all sorts of success metrics very well.
+But this is in aggregate.
+I maintain my belief that variance is high.
+One person getting a C for one essay should not cement my opinion of them.</p>
+<p>But apparently my opinion of politicians and the likelihood of any of them passing a good law is even lower than that of teachers and their ability to give proper grades.
+Signs of our times or me being an ass? Probably a bit of both.</p>
+</article>
+]]></description>
+    <pubDate>2017-03-22</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2017-03-22-grades-vs-politicians/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>It's easier to ask forgiveness than it is to get permission</title>
+    <link>http://stefan-fehrenbach.net/blog/2017-03-01-it-s-easier-to-ask-forgiveness-than-it-is-to-get-permission/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2017-03-01
+  </header>
+  <h1 id="its-easier-to-ask-forgiveness-than-it-is-to-get-permission">It’s easier to ask forgiveness than it is to get permission</h1>
+<p>Four emails later, I have graciously been permitted to swap desks with my office mate.</p>
+<p>At least I learned that the title is a <a href="https://en.wikiquote.org/wiki/Grace_Hopper">Grace Hopper</a> quote.</p>
+</article>
+]]></description>
+    <pubDate>2017-03-01</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2017-03-01-it-s-easier-to-ask-forgiveness-than-it-is-to-get-permission/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+<item>
+    <title>Provenance in the wild &#35;2</title>
+    <link>http://stefan-fehrenbach.net/blog/2016-11-28-provenance-in-the-wild-2/index.html</link>
+    <description><![CDATA[<article>
+  <header>
+    2016-11-28
+  </header>
+  <p>People really want provenance.
+I keep failing at coming up with good examples.
+So maybe I should keep a record.</p>
+<p>Today’s iteration: <a href="https://twitter.com/sigfpe/status/803061560708972544">Dan Piponi wants to know</a> why pixels look like they do:</p>
+<blockquote>
+<p>Working on Atari 2600 emulator. Adding feature I’ve wanted on every platform: click on pixel to get explanation for why it looks like that.</p>
+</blockquote>
+<p>I don’t know anything about Atari 2600 graphics, but he says that dumping the TIA registers and timing information should be enough.
+This is not obviously one of the forms of provenance studied in the context of databases.
+I’m not even sure (emulator-) language-level provenance would necessarily help very much with implementing this.</p>
+<p>As in, provenance in the object language is at a different level from provenance in the meta language.
+The object language being the interface of the emulator (where you click on pixels).
+From the meta language viewpoint, it is data that you want to propagate, pretty much like any other data.
+What could language-support for provenance possibly provide over just pairing up pixels with their associated ITA register values?</p>
+<p>So does that mean that people do not want provenance support in their language after all?</p>
+</article>
+]]></description>
+    <pubDate>2016-11-28</pubDate>
+    <guid>http://stefan-fehrenbach.net/blog/2016-11-28-provenance-in-the-wild-2/index.html</guid>
+    <dc:creator>Stefan Fehrenbach</dc:creator>
+</item>
+
+    </channel>
+</rss>
